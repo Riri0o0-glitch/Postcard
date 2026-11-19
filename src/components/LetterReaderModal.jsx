@@ -71,17 +71,21 @@ export function LetterReaderModal({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button 
-              className="ritual-action-btn"
-              onClick={() => {
-                setViewState(viewState === 'envelope' ? 'letter' : 'envelope')
-                audioEngine.playPaperSlide()
-              }}
-              style={{ fontSize: '11px', padding: '4px 10px', background: '#362920', color: 'var(--ivory)', borderColor: '#4E3A2D' }}
-            >
-              <RotateCw size={12} />
-              <span>{viewState === 'envelope' ? 'Read Written Folio' : 'Inspect Envelope & Seal'}</span>
-            </button>
+            {viewState === 'letter' && (
+              <button
+                className="ritual-action-btn"
+                onClick={() => {
+                  setViewState('envelope')
+                  setIsFlipped(false)
+                  setIsOpening(false)
+                  audioEngine.playPaperSlide()
+                }}
+                style={{ fontSize: '11px', padding: '4px 10px', background: '#362920', color: 'var(--ivory)', borderColor: '#4E3A2D' }}
+              >
+                <RotateCw size={12} />
+                <span>Inspect Envelope & Seal</span>
+              </button>
+            )}
 
             <button 
               onClick={onClose}

@@ -8,11 +8,13 @@ export function AuthModal({
   onClose, 
   onLogin, 
   onRegister,
-  currentUser 
+  currentUser,
+  onLogout
 }) {
   const [isRegisterMode, setIsRegisterMode] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [address, setAddress] = useState('')
   const [sealColor, setSealColor] = useState('#743D45')
   const [sealEmblem, setSealEmblem] = useState('')
@@ -23,34 +25,37 @@ export function AuthModal({
     e.preventDefault()
 
     if (isRegisterMode) {
-      if (!name.trim()) {
-        alert('Please enter your name for the correspondence registry.')
+      if (!name.trim() || !email.trim() || !password.trim()) {
+        alert('Please enter your name, postal email, and a password.')
         return
       }
 
       const newUser = {
         id: `user-${Date.now()}`,
         name: name.trim(),
-        email: email.trim() || `${name.toLowerCase().replace(/\s+/g, '.')}@postmarked.desk`,
+        email: email.trim().toLowerCase(),
+        password,
         address: address.trim() || 'No. 1 Post Restante, Camden',
         sealColor,
         sealEmblem: (sealEmblem || name.charAt(0)).toUpperCase()
       }
 
       audioEngine.playSealCrack()
-      onRegister(newUser)
-      onClose()
+      if (onRegister(newUser)) {
+        onClose()
+      }
     } else {
-      if (!name.trim() && !email.trim()) {
-        alert('Please enter your name or email to retrieve your desk.')
+      if (!email.trim() || !password.trim()) {
+        alert('Enter your postal email and password to retrieve your desk.')
         return
       }
-      onLogin({
-        name: name.trim() || 'Correspondent',
-        email: email.trim()
+      const signedIn = onLogin({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password
       })
       audioEngine.playPaperSlide()
-      onClose()
+      if (signedIn) onClose()
     }
   }
 
@@ -128,6 +133,23 @@ export function AuthModal({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="e.g. clara@camdenstudio.co.uk"
               style={{ width: '100%', fontSize: '13px' }}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--brown)', display: 'block', marginBottom: '4px' }}>
+              Desk Password
+            </label>
+            <input
+              type="password"
+              className="toolbar-select"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your private desk password"
+              minLength={isRegisterMode ? 6 : 1}
+              style={{ width: '100%', fontSize: '13px' }}
+              required
             />
           </div>
 
@@ -229,6 +251,25 @@ export function AuthModal({
             )}
           </button>
         </form>
+
+        {currentUser && onLogout && (
+          <button
+            type="button"
+            onClick={() => {
+              onLogout()
+              onClose()
+            }}
+            style={{
+              width: '100%',
+              marginTop: '10px',
+              color: 'var(--brown)',
+              textDecoration: 'underline',
+              fontSize: '12px'
+            }}
+          >
+            Sign out of {currentUser.name}
+          </button>
+        )}
 
         <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '12px', color: 'var(--brown)' }}>
           {isRegisterMode ? (

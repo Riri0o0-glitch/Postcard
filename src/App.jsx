@@ -214,6 +214,20 @@ export default function App() {
   const handleCompleteSend = () => {
     if (letterInTransit) {
       setLetters(prev => [letterInTransit, ...prev])
+      if (letterInTransit.recipientEmail) {
+        const recipientEmail = letterInTransit.recipientEmail.toLowerCase()
+        const mailboxKey = `postmarked_mailbox_${recipientEmail}`
+        try {
+          const mailbox = JSON.parse(localStorage.getItem(mailboxKey) || '[]')
+          const deliveredLetter = {
+            ...letterInTransit,
+            id: `missive-inbox-${Date.now()}`,
+            status: 'inbox',
+            unread: true
+          }
+          localStorage.setItem(mailboxKey, JSON.stringify([deliveredLetter, ...mailbox]))
+        } catch (e) {}
+      }
       // Remove draft if sending from draft
       if (composerData?.id) {
         setDrafts(prev => prev.filter(d => d.id !== composerData.id))
@@ -224,6 +238,14 @@ export default function App() {
 
   // User Registration Handler: Dispatches official welcome letter from POSTMARKED!
   const handleRegister = (newUser) => {
+    const registry = JSON.parse(localStorage.getItem('postmarked_registry') || '{}')
+    const email = newUser.email.toLowerCase()
+    if (registry[email]) {
+      alert('That postal email is already registered. Sign in instead.')
+      return false
+    }
+    registry[email] = newUser
+    localStorage.setItem('postmarked_registry', JSON.stringify(registry))
     setCurrentUser(newUser)
     
     // Update settings with user's registered name and seal
@@ -260,14 +282,44 @@ export default function App() {
 
     setLetters(prev => [welcomeLetter, ...prev])
     setActiveSection('My Desk')
+    return true
   }
 
   const handleLogin = (userData) => {
-    setCurrentUser(userData)
+    const registry = JSON.parse(localStorage.getItem('postmarked_registry') || '{}')
+    const account = registry[userData.email.toLowerCase()]
+    if (!account || account.password !== userData.password) {
+      alert('We could not match that postal email and password.')
+      return false
+    }
+
+    setCurrentUser(account)
     setSettings(prev => ({
       ...prev,
-      userName: userData.name
+      userName: account.name,
+      userAddress: account.address,
+      defaultSealColor: account.sealColor,
+      defaultSealEmblem: account.sealEmblem
     }))
+    setSelectedWaxColor(account.sealColor)
+
+    try {
+      const mailboxKey = `postmarked_mailbox_${account.email}`
+      const mailbox = JSON.parse(localStorage.getItem(mailboxKey) || '[]')
+      if (mailbox.length > 0) {
+        setLetters(prev => {
+          const ids = new Set(prev.map(letter => letter.id))
+          return [...mailbox.filter(letter => !ids.has(letter.id)), ...prev]
+        })
+        localStorage.removeItem(mailboxKey)
+      }
+    } catch (e) {}
+    return true
+  }
+
+  const handleLogout = () => {
+    setCurrentUser(null)
+    localStorage.removeItem('postmarked_current_user')
   }
 
   const handleResetData = () => {
@@ -441,6 +493,7 @@ export default function App() {
         onLogin={handleLogin}
         onRegister={handleRegister}
         currentUser={currentUser}
+        onLogout={handleLogout}
       />
     </div>
   )

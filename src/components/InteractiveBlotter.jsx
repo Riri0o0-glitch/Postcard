@@ -155,41 +155,20 @@ export function InteractiveBlotter({
               </div>
 
               <div className="caddy-item-list">
-                <div 
-                  className="caddy-item-row"
-                  onClick={() => onOpenLetter && onOpenLetter(caddyLetters[0])}
-                  title="Read Parisian map postcard"
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '13px' }}>✉</span>
-                    <span className="caddy-item-name">Parisian map postcard</span>
+                {caddyLetters.slice(0, 3).map((caddyLetter, index) => (
+                  <div
+                    key={caddyLetter.id || index}
+                    className="caddy-item-row"
+                    onClick={() => onOpenLetter && onOpenLetter(caddyLetter)}
+                    title={`Read ${caddyLetter.subject}`}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '13px' }}>✉</span>
+                      <span className="caddy-item-name">{caddyLetter.subject}</span>
+                    </div>
+                    <span className="caddy-item-date">{caddyLetter.date?.split(' ')[0] || 'Today'}</span>
                   </div>
-                  <span className="caddy-item-date">Sep 20</span>
-                </div>
-
-                <div 
-                  className="caddy-item-row"
-                  onClick={() => onOpenLetter && onOpenLetter(caddyLetters[1])}
-                  title="Read Pressed ferns folio"
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '13px' }}>✉</span>
-                    <span className="caddy-item-name">Pressed ferns folio</span>
-                  </div>
-                  <span className="caddy-item-date">Aug 14</span>
-                </div>
-
-                <div 
-                  className="caddy-item-row"
-                  onClick={() => onOpenDraft && onOpenDraft()}
-                  title="Open Railway timetable draft"
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '13px' }}>✎</span>
-                    <span className="caddy-item-name">Railway timetable draft</span>
-                  </div>
-                  <span className="caddy-item-date">Jul 02</span>
-                </div>
+                ))}
               </div>
             </div>
 
