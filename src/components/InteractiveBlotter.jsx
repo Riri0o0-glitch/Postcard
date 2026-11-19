@@ -1,20 +1,17 @@
 import { useState } from 'react'
 import { RotateCw, Scissors, Sparkles, Feather, Compass, Check } from 'lucide-react'
+import { PhysicalEnvelope } from './PhysicalEnvelope'
 import { audioEngine } from '../utils/audio'
 
 export function InteractiveBlotter({ 
   featuredLetter, 
   onOpenLetter, 
   onOpenDraft,
-  caddyLetters = [],
-  selectedWaxColor,
-  onSelectWaxColor,
-  selectedNib,
-  onSelectNib
+  caddyLetters = []
 }) {
   const [isFlipped, setIsFlipped] = useState(false)
   const [isOpenerReady, setIsOpenerReady] = useState(true)
-  const [isPeeling, setIsPeeling] = useState(false)
+  const [isOpening, setIsOpening] = useState(false)
 
   const letter = featuredLetter || {
     id: 'missive-julian-1596',
@@ -25,7 +22,8 @@ export function InteractiveBlotter({
     subject: 'On the quiet cobblestones of the Old Town...',
     postmark: 'EDINBURGH POST • 14 OCT 1996 • POSTAGE 24',
     sealColor: '#743D45',
-    sealEmblem: 'J'
+    sealEmblem: 'J',
+    body: 'Dearest Clara,\n\nThe autumn has settled deeply into Edinburgh. Dusk descends at four in the afternoon...'
   }
 
   const handleFlip = () => {
@@ -39,12 +37,25 @@ export function InteractiveBlotter({
   }
 
   const handlePeelSeal = () => {
-    setIsPeeling(true)
+    if (!isFlipped) {
+      setIsFlipped(true)
+      audioEngine.playPaperSlide()
+      setTimeout(() => {
+        triggerOpenSequence()
+      }, 400)
+    } else {
+      triggerOpenSequence()
+    }
+  }
+
+  const triggerOpenSequence = () => {
+    setIsOpening(true)
     audioEngine.playSealCrack()
+    audioEngine.playPaperSlide()
     setTimeout(() => {
       onOpenLetter(letter)
-      setIsPeeling(false)
-    }, 450)
+      setIsOpening(false)
+    }, 650)
   }
 
   return (
@@ -95,90 +106,18 @@ export function InteractiveBlotter({
         </div>
 
         <div className="blotter-stage-grid">
-          <div className="envelope-3d-stage">
-            <div 
-              className={`envelope-card-flipper ${isFlipped ? 'is-flipped' : ''}`}
-              onClick={handleFlip}
-              title="Click anywhere to turn envelope over"
-            >
-              <div className="envelope-face envelope-face-front">
-                <div className="airmail-trim-top" />
-                <div className="airmail-trim-bottom" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <PhysicalEnvelope
+              letter={letter}
+              isFlipped={isFlipped}
+              onFlip={setIsFlipped}
+              onOpen={handlePeelSeal}
+              isOpening={isOpening}
+              interactive={true}
+              size="large"
+            />
 
-                <div className="envelope-front-header">
-                  <div>
-                    <span className="par-avion-label">PAR AVION</span>
-                    <div className="return-address-block">
-                      <div className="return-ex-libris">EX LIBRIS JULIAN VANCE</div>
-                      <div>No. 12 St Stephen Street,</div>
-                      <div>Stockbridge, Edinburgh</div>
-                    </div>
-                  </div>
-
-                  <div className="postmark-and-stamp-area">
-                    <div className="vintage-postmark-seal">
-                      <span>EDINBURGH<br />POST</span>
-                      <strong>14 OCT 1996</strong>
-                      <span>POSTAGE 24</span>
-                    </div>
-
-                    <div className="postmark-wavy-lines">
-                      <div className="postmark-wave" />
-                      <div className="postmark-wave" />
-                      <div className="postmark-wave" />
-                    </div>
-
-                    <div className="postage-stamp-widget">
-                      <div className="stamp-inner-border">
-                        <span className="stamp-legend">SCOTIA</span>
-                        <span className="stamp-value">24</span>
-                        <span className="stamp-legend">AIR MAIL</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="envelope-recipient-box">
-                  <div className="to-the-hand-of">TO THE HAND OF:</div>
-                  <div className="recipient-calligraphy-name">
-                    Clara Linnea Hastings
-                  </div>
-                  <div className="recipient-calligraphy-address">
-                    The Studio Attic, 44 Canal Basin, Camden<br />
-                    <span style={{ fontSize: '13px', letterSpacing: '0.1em', fontFamily: 'Lora, serif' }}>
-                      LONDON • UNITED KINGDOM
-                    </span>
-                  </div>
-                </div>
-
-                <div className="envelope-front-footer">
-                  <span>✦ Click and flip to check flap & seal</span>
-                </div>
-              </div>
-
-              <div className="envelope-face envelope-face-back">
-                <div className="envelope-back-fold-left" />
-                <div className="envelope-back-fold-right" />
-                <div className="envelope-back-fold-bottom" />
-                <div className={`envelope-back-flap ${isPeeling ? 'open' : ''}`} />
-
-                <div 
-                  className="wax-seal-button"
-                  style={{
-                    background: `radial-gradient(circle at 35% 35%, #9E5660 0%, ${letter.sealColor || '#743D45'} 60%, #401B22 100%)`
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handlePeelSeal()
-                  }}
-                  title="Peel wax seal to open missive"
-                >
-                  <span>{letter.sealEmblem || 'J'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="envelope-blotter-controls">
+            <div className="envelope-blotter-controls" style={{ marginTop: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--burgundy)' }} />
                 <span className="sealed-missive-snippet">
@@ -193,7 +132,7 @@ export function InteractiveBlotter({
                   style={{ padding: '4px 8px', fontSize: '10.5px' }}
                 >
                   <RotateCw size={11} />
-                  <span>FLIP ENVELOPE</span>
+                  <span>{isFlipped ? 'SHOW ADDRESS' : 'FLIP ENVELOPE'}</span>
                 </button>
                 <button 
                   className="ritual-action-btn ritual-primary-btn"

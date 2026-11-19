@@ -1,22 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { 
   Save, 
   Send, 
   Eye, 
-  Paperclip, 
+  Share2, 
+  Mail, 
+  Copy, 
+  Check, 
   Sparkles, 
-  Palette, 
-  Type, 
-  RotateCcw,
-  Check,
-  Feather
+  Feather 
 } from 'lucide-react'
 import { 
   STATIONERY_OPTIONS, 
   FONT_OPTIONS, 
   INK_OPTIONS, 
   WAX_COLORS, 
-  STAMP_OPTIONS, 
   ATTACHMENT_OPTIONS 
 } from '../data/initialLetters'
 import { audioEngine } from '../utils/audio'
@@ -29,6 +27,7 @@ export function LetterComposer({
   settings 
 }) {
   const [recipient, setRecipient] = useState(initialData?.recipient || settings?.correspondentName || 'Julian Vance')
+  const [recipientEmail, setRecipientEmail] = useState(initialData?.recipientEmail || '')
   const [recipientAddress, setRecipientAddress] = useState(
     initialData?.recipientAddress || settings?.correspondentAddress || 'No. 12 St Stephen Street, Stockbridge, Edinburgh'
   )
@@ -40,12 +39,11 @@ export function LetterComposer({
   const [font, setFont] = useState(initialData?.font || settings?.defaultFont || 'Caveat')
   const [inkColor, setInkColor] = useState(initialData?.inkColor || settings?.defaultInkColor || '#302820')
   const [sealColor, setSealColor] = useState(initialData?.sealColor || settings?.defaultSealColor || '#743D45')
-  const [sealEmblem, setSealEmblem] = useState(initialData?.sealEmblem || settings?.defaultSealEmblem || 'C')
-  const [stamp, setStamp] = useState(initialData?.stamp || 'Airmail 24')
   const [selectedAttachment, setSelectedAttachment] = useState(initialData?.attachment?.type || null)
   
   const [toastMessage, setToastMessage] = useState('')
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
 
   const selectedStationeryObj = STATIONERY_OPTIONS.find(s => s.id === stationery) || STATIONERY_OPTIONS[0]
   const selectedFontObj = FONT_OPTIONS.find(f => f.id === font) || FONT_OPTIONS[0]
@@ -61,6 +59,7 @@ export function LetterComposer({
     const draftData = {
       id: initialData?.id || `draft-${Date.now()}`,
       recipient,
+      recipientEmail,
       recipientAddress,
       subject: subject || 'Untitled missive',
       body,
@@ -69,8 +68,7 @@ export function LetterComposer({
       font,
       inkColor,
       sealColor,
-      sealEmblem,
-      stamp,
+      sealEmblem: settings?.defaultSealEmblem || 'C',
       attachment: selectedAttachment ? ATTACHMENT_OPTIONS.find(a => a.id === selectedAttachment) : null,
       date: 'October 14, 1996',
       updatedAt: 'Just now'
@@ -93,6 +91,7 @@ export function LetterComposer({
       sender: `${settings?.userName || 'Clara Linnea Hastings'} (You)`,
       senderAddress: settings?.userAddress || 'The Studio Attic, 44 Canal Basin, Camden, London',
       recipient: recipient || 'Julian Vance',
+      recipientEmail: recipientEmail.trim(),
       recipientAddress: recipientAddress || 'Stockbridge, Edinburgh',
       subject: subject || 'Letter from Camden',
       body,
@@ -101,18 +100,46 @@ export function LetterComposer({
       font,
       inkColor,
       sealColor,
-      sealEmblem,
-      stamp,
+      sealEmblem: settings?.defaultSealEmblem || 'C',
       attachment: selectedAttachment ? ATTACHMENT_OPTIONS.find(a => a.id === selectedAttachment) : null,
       date: 'October 14, 1996',
       postmark: 'LONDON CAMDEN POST • 14 OCT 1996 • VALENTIA 24',
       status: 'sent',
-      deliveryStatus: 'In Transit across the distance',
+      deliveryStatus: recipientEmail ? `Dispatched to ${recipientEmail}` : 'In Transit across the distance',
       unread: false,
       isKeepsake: false
     }
 
     onSendLetter(letterData)
+  }
+
+  const handleCopyShareLink = () => {
+    const payload = {
+      sender: settings?.userName || 'A Secret Correspondent',
+      senderAddress: settings?.userAddress || 'London',
+      recipient: recipient || 'You',
+      subject: subject || 'A Missive from Postmarked',
+      body: body || 'Some feelings deserve a letter.',
+      sealColor,
+      stationery
+    }
+    const encoded = encodeURIComponent(JSON.stringify(payload))
+    const shareUrl = `${window.location.origin}${window.location.pathname}?letter=${encoded}`
+
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 3000)
+    }).catch(() => {
+      prompt('Copy this shareable letter link for your correspondent:', shareUrl)
+    })
+  }
+
+  const handleSendViaEmailClient = () => {
+    const mailtoSubject = encodeURIComponent(subject || 'A letter for you from Postmarked')
+    const mailtoBody = encodeURIComponent(
+      `Dearest ${recipient},\n\nI have penned a letter for you on Postmarked:\n\n"${body}"\n\n— ${signature}\n\n(Sent via Postmarked: Some feelings deserve a letter.)`
+    )
+    window.open(`mailto:${recipientEmail || ''}?subject=${mailtoSubject}&body=${mailtoBody}`, '_blank')
   }
 
   return (
@@ -137,86 +164,88 @@ export function LetterComposer({
         </div>
       )}
 
-      <div className="composer-toolbar">
-        <div className="toolbar-group">
-          <span className="toolbar-label">📜 Paper:</span>
-          <select 
-            className="toolbar-select"
-            value={stationery} 
-            onChange={(e) => {
-              setStationery(e.target.value)
-              audioEngine.playPaperSlide()
-            }}
-          >
-            {STATIONERY_OPTIONS.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+      <div className="composer-toolbar" style={{ justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="toolbar-group">
+            <span className="toolbar-label">📜 Paper:</span>
+            <select 
+              className="toolbar-select"
+              value={stationery} 
+              onChange={(e) => {
+                setStationery(e.target.value)
+                audioEngine.playPaperSlide()
+              }}
+            >
+              {STATIONERY_OPTIONS.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
 
-        <div className="toolbar-group">
-          <span className="toolbar-label">✒ Script:</span>
-          <select 
-            className="toolbar-select"
-            value={font} 
-            onChange={(e) => setFont(e.target.value)}
-          >
-            {FONT_OPTIONS.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-        </div>
+          <div className="toolbar-group">
+            <span className="toolbar-label">✒ Script:</span>
+            <select 
+              className="toolbar-select"
+              value={font} 
+              onChange={(e) => setFont(e.target.value)}
+            >
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          </div>
 
-        <div className="toolbar-group">
-          <span className="toolbar-label">🖋 Ink:</span>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {INK_OPTIONS.map((ink) => (
-              <button
-                key={ink.id}
-                onClick={() => setInkColor(ink.id)}
-                title={ink.name}
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: ink.color,
-                  border: inkColor === ink.id ? '2px solid #FFF' : '1px solid #AAA',
-                  boxShadow: inkColor === ink.id ? '0 0 0 1.5px var(--burgundy)' : 'none'
-                }}
-              />
-            ))}
+          <div className="toolbar-group">
+            <span className="toolbar-label">🖋 Ink:</span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {INK_OPTIONS.map((ink) => (
+                <button
+                  key={ink.id}
+                  onClick={() => setInkColor(ink.id)}
+                  title={ink.name}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: ink.color,
+                    border: inkColor === ink.id ? '2px solid #FFF' : '1px solid #AAA',
+                    boxShadow: inkColor === ink.id ? '0 0 0 1.5px var(--burgundy)' : 'none'
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="toolbar-group">
+            <span className="toolbar-label">🕯 Seal:</span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {WAX_COLORS.map((wax) => (
+                <button
+                  key={wax.id}
+                  onClick={() => setSealColor(wax.id)}
+                  title={wax.name}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: wax.color,
+                    border: sealColor === wax.id ? '2px solid #FFF' : '1px solid #888',
+                    boxShadow: sealColor === wax.id ? '0 0 0 1.5px var(--gold)' : 'none'
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="toolbar-group">
-          <span className="toolbar-label">🕯 Seal:</span>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {WAX_COLORS.map((wax) => (
-              <button
-                key={wax.id}
-                onClick={() => setSealColor(wax.id)}
-                title={wax.name}
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: wax.color,
-                  border: sealColor === wax.id ? '2px solid #FFF' : '1px solid #888',
-                  boxShadow: sealColor === wax.id ? '0 0 0 1.5px var(--gold)' : 'none'
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="toolbar-group">
-          <span className="toolbar-label">🌿 Keepsake:</span>
+          <span className="toolbar-label">🌿 Enclosure:</span>
           <select 
             className="toolbar-select"
             value={selectedAttachment || ''} 
             onChange={(e) => setSelectedAttachment(e.target.value || null)}
           >
-            <option value="">None (Plain Letter)</option>
+            <option value="">None (Plain)</option>
             {ATTACHMENT_OPTIONS.map((att) => (
               <option key={att.id} value={att.id}>{att.icon} {att.name}</option>
             ))}
@@ -235,7 +264,7 @@ export function LetterComposer({
           <div>
             <span className="to-the-hand-of">LOCATION & STUDIO:</span>
             <div style={{ fontSize: '13px', fontFamily: 'Lora, serif', color: 'var(--coffee)', marginTop: '2px' }}>
-              The Studio Attic, 44 Canal Basin, Camden, London
+              {settings?.userAddress || 'The Studio Attic, 44 Canal Basin, Camden, London'}
             </div>
           </div>
 
@@ -244,29 +273,35 @@ export function LetterComposer({
           </div>
         </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <div className="to-the-hand-of">RECIPIENT & DESTINATION:</div>
-          <input
-            type="text"
-            className="composer-field-input"
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            placeholder="To: Julian Vance"
-            style={{ 
-              fontWeight: 600, 
-              fontSize: '22px',
-              fontFamily: font === 'Caveat' ? "'Caveat', cursive" : 'inherit',
-              color: inkColor 
-            }}
-          />
-          <input
-            type="text"
-            className="composer-field-input"
-            value={recipientAddress}
-            onChange={(e) => setRecipientAddress(e.target.value)}
-            placeholder="Address: No. 12 St Stephen Street, Stockbridge, Edinburgh"
-            style={{ fontSize: '13px', fontFamily: 'Lora, serif', color: 'var(--brown)', marginTop: '-8px' }}
-          />
+        <div style={{ marginBottom: '18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+          <div>
+            <div className="to-the-hand-of">RECIPIENT NAME:</div>
+            <input
+              type="text"
+              className="composer-field-input"
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              placeholder="e.g. Julian Vance"
+              style={{ 
+                fontWeight: 600, 
+                fontSize: '20px',
+                fontFamily: font === 'Caveat' ? "'Caveat', cursive" : 'inherit',
+                color: inkColor 
+              }}
+            />
+          </div>
+
+          <div>
+            <div className="to-the-hand-of">DESTINATION EMAIL (OPTIONAL FOR DIRECT MAIL):</div>
+            <input
+              type="email"
+              className="composer-field-input"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              placeholder="e.g. friend@somewhere.com"
+              style={{ fontSize: '14px', fontFamily: 'Lora, serif', color: 'var(--brown)' }}
+            />
+          </div>
         </div>
 
         <div style={{ marginBottom: '20px' }}>
@@ -279,7 +314,7 @@ export function LetterComposer({
             placeholder="Subject: The smell of autumn rain upon the canal..."
             style={{ 
               fontFamily: 'Cormorant Garamond, serif', 
-              fontSize: '20px', 
+              fontSize: '22px', 
               fontStyle: 'italic',
               color: inkColor 
             }}
@@ -318,9 +353,6 @@ export function LetterComposer({
             </span>
             <div>
               <strong>Enclosed:</strong> {ATTACHMENT_OPTIONS.find(a => a.id === selectedAttachment)?.name}
-              <div style={{ fontSize: '9px', color: '#8A7664' }}>
-                {ATTACHMENT_OPTIONS.find(a => a.id === selectedAttachment)?.note}
-              </div>
             </div>
           </div>
         )}
@@ -338,8 +370,8 @@ export function LetterComposer({
         </div>
       </div>
 
-      <div className="composer-actions-bar">
-        <div style={{ display: 'flex', gap: '12px' }}>
+      <div className="composer-actions-bar" style={{ flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
           <button 
             className="ritual-action-btn"
             onClick={onCancel}
@@ -352,11 +384,31 @@ export function LetterComposer({
             onClick={handleSaveDraft}
           >
             <Save size={13} />
-            <span>Save as Draft</span>
+            <span>Save Draft</span>
+          </button>
+
+          <button 
+            className="ritual-action-btn"
+            onClick={handleCopyShareLink}
+            title="Generate a direct link to this letter so anyone can open and read it"
+          >
+            {copiedLink ? <Check size={13} color="green" /> : <Share2 size={13} />}
+            <span>{copiedLink ? 'Link Copied!' : 'Copy Shareable Letter Link'}</span>
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {recipientEmail && (
+            <button 
+              className="ritual-action-btn"
+              onClick={handleSendViaEmailClient}
+              title="Open your email client with this letter pre-filled"
+            >
+              <Mail size={13} />
+              <span>Send via Email</span>
+            </button>
+          )}
+
           <button 
             className="ritual-action-btn"
             onClick={() => setShowPreviewModal(true)}

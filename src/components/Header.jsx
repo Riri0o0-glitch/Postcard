@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react'
-import { Volume2, VolumeX, Menu, Mail, BookOpen, User, Sparkles } from 'lucide-react'
+import { Volume2, VolumeX, Menu, Mail, BookOpen, User, UserCheck, Sparkles } from 'lucide-react'
 import { audioEngine } from '../utils/audio'
 
-export function Header({ activeSection, onToggleSidebar, onNavigate, lettersCount, unreadCount, isAmbienceActive, setIsAmbienceActive }) {
+export function Header({ 
+  activeSection, 
+  onToggleSidebar, 
+  onNavigate, 
+  lettersCount, 
+  unreadCount, 
+  isAmbienceActive, 
+  setIsAmbienceActive,
+  currentUser,
+  onOpenAuth
+}) {
   const [currentDateStr, setCurrentDateStr] = useState('')
 
   useEffect(() => {
+    // Vintage 1996 aesthetic date matching lore
     setCurrentDateStr('Wednesday, October 14, 1996 • Twilight Dispatch')
   }, [])
 
@@ -37,6 +48,7 @@ export function Header({ activeSection, onToggleSidebar, onNavigate, lettersCoun
       </div>
 
       <div className="topbar-right">
+        {/* Ambience audio toggle */}
         <button 
           className={`ambience-toggle-btn ${isAmbienceActive ? 'active' : ''}`}
           onClick={handleToggleSound}
@@ -47,6 +59,48 @@ export function Header({ activeSection, onToggleSidebar, onNavigate, lettersCoun
           <span>Pen & Rain Ambience • {isAmbienceActive ? 'Active' : 'Muted'}</span>
         </button>
 
+        {/* Registry & User Account Button */}
+        <button
+          className="ritual-action-btn"
+          onClick={onOpenAuth}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '11px',
+            padding: '5px 12px',
+            background: '#FAF5ED',
+            borderColor: '#D4C3AE',
+            color: 'var(--ink)'
+          }}
+          title="Postal Bureau Registry, Sign In & Registration"
+        >
+          {currentUser ? (
+            <>
+              <div style={{
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                background: currentUser.sealColor || 'var(--burgundy)',
+                color: '#FFF',
+                fontSize: '10px',
+                fontWeight: 700,
+                display: 'grid',
+                placeItems: 'center'
+              }}>
+                {currentUser.sealEmblem || currentUser.name.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontWeight: 600 }}>{currentUser.name.split(' ')[0]}</span>
+            </>
+          ) : (
+            <>
+              <User size={13} color="var(--burgundy)" />
+              <span style={{ fontWeight: 600 }}>Registry / Sign In</span>
+            </>
+          )}
+        </button>
+
+        {/* Quick status icons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button 
             onClick={() => onNavigate('Inbox')}
@@ -73,14 +127,6 @@ export function Header({ activeSection, onToggleSidebar, onNavigate, lettersCoun
             style={{ display: 'flex', alignItems: 'center', color: 'var(--coffee)' }}
           >
             <BookOpen size={16} />
-          </button>
-
-          <button 
-            onClick={() => onNavigate('Settings')}
-            title="Desk Settings"
-            style={{ display: 'flex', alignItems: 'center', color: 'var(--coffee)' }}
-          >
-            <User size={16} />
           </button>
         </div>
       </div>
