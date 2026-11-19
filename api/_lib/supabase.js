@@ -4,6 +4,7 @@ export function storageConfigured() {
 
 const supabaseHeaders = () => ({
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
   'Content-Type': 'application/json'
 })
 
@@ -39,7 +40,13 @@ async function request(path, options = {}) {
     throw new Error(`Storage request failed: ${await response.text()}`)
   }
   if (response.status === 204) return null
-  return response.json()
+  const text = await response.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error(`Storage returned invalid JSON: ${text.slice(0, 200)}`)
+  }
 }
 
 export async function findProfile(email) {

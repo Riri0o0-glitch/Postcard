@@ -8,6 +8,7 @@ import {
 } from './_lib/supabase.js'
 
 function json(res, status, body) {
+  res.setHeader('Content-Type', 'application/json')
   res.status(status).json(body)
 }
 
