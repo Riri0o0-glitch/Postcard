@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X, UserPlus, LogIn, Mail, Check, Feather } from 'lucide-react'
 import { WAX_COLORS } from '../data/initialLetters'
 import { audioEngine } from '../utils/audio'
+import { postmarkedRequest } from '../utils/mailApi'
 
 export function AuthModal({ 
   isOpen, 
@@ -18,44 +19,43 @@ export function AuthModal({
   const [address, setAddress] = useState('')
   const [sealColor, setSealColor] = useState('#743D45')
   const [sealEmblem, setSealEmblem] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isOpen) return null
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setIsSubmitting(true)
 
-    if (isRegisterMode) {
-      if (!name.trim() || !email.trim() || !password.trim()) {
-        alert('Please enter your name, postal email, and a password.')
-        return
-      }
-
-      const newUser = {
-        id: `user-${Date.now()}`,
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password,
-        address: address.trim() || 'No. 1 Post Restante, Camden',
-        sealColor,
-        sealEmblem: (sealEmblem || name.charAt(0)).toUpperCase()
-      }
-
-      audioEngine.playSealCrack()
-      if (onRegister(newUser)) {
+    try {
+      if (isRegisterMode) {
+        const result = await postmarkedRequest('register', {
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          address: address.trim(),
+          sealColor,
+          sealEmblem: (sealEmblem || name.charAt(0)).toUpperCase()
+        })
+        audioEngine.playSealCrack()
+        onRegister(result.account)
+        onClose()
+      } else {
+        const result = await postmarkedRequest('login', {
+          email: email.trim(),
+          password
+        })
+        audioEngine.playPaperSlide()
+        onLogin(result.account)
+        if (result.mailbox?.length) {
+          window.dispatchEvent(new CustomEvent('postmarked-mailbox', { detail: result.mailbox }))
+        }
         onClose()
       }
-    } else {
-      if (!email.trim() || !password.trim()) {
-        alert('Enter your postal email and password to retrieve your desk.')
-        return
-      }
-      const signedIn = onLogin({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password
-      })
-      audioEngine.playPaperSlide()
-      if (signedIn) onClose()
+    } catch (error) {
+      alert(error.message)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -237,8 +237,11 @@ export function AuthModal({
             type="submit"
             className="ritual-action-btn ritual-primary-btn"
             style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '13px' }}
+            disabled={isSubmitting}
           >
-            {isRegisterMode ? (
+            {isSubmitting ? (
+              <span>Contacting the Postal Bureau...</span>
+            ) : isRegisterMode ? (
               <>
                 <UserPlus size={15} />
                 <span>Register & Open Writing Desk</span>

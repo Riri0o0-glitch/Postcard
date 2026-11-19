@@ -17,6 +17,7 @@ import {
   INITIAL_SETTINGS 
 } from './data/initialLetters'
 import { audioEngine } from './utils/audio'
+import { postmarkedRequest } from './utils/mailApi'
 import './styles.css'
 
 export default function App() {
@@ -137,6 +138,19 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    const receiveMailbox = (event) => {
+      const mailbox = event.detail || []
+      if (!mailbox.length) return
+      setLetters(prev => {
+        const ids = new Set(prev.map(letter => letter.id))
+        return [...mailbox.filter(letter => !ids.has(letter.id)), ...prev]
+      })
+    }
+    window.addEventListener('postmarked-mailbox', receiveMailbox)
+    return () => window.removeEventListener('postmarked-mailbox', receiveMailbox)
+  }, [])
+
   // Unread & Counter stats
   const unreadCount = letters.filter(l => l.status === 'inbox' && l.unread).length
   const draftsCount = drafts.length
@@ -211,22 +225,15 @@ export default function App() {
   }
 
   // Complete Send Letter (Saved into Sent Letters)
-  const handleCompleteSend = () => {
+  const handleCompleteSend = async () => {
     if (letterInTransit) {
       setLetters(prev => [letterInTransit, ...prev])
       if (letterInTransit.recipientEmail) {
-        const recipientEmail = letterInTransit.recipientEmail.toLowerCase()
-        const mailboxKey = `postmarked_mailbox_${recipientEmail}`
         try {
-          const mailbox = JSON.parse(localStorage.getItem(mailboxKey) || '[]')
-          const deliveredLetter = {
-            ...letterInTransit,
-            id: `missive-inbox-${Date.now()}`,
-            status: 'inbox',
-            unread: true
-          }
-          localStorage.setItem(mailboxKey, JSON.stringify([deliveredLetter, ...mailbox]))
-        } catch (e) {}
+          await postmarkedRequest('send', { letter: letterInTransit })
+        } catch (error) {
+          alert(`The letter was saved locally, but delivery failed: ${error.message}`)
+        }
       }
       // Remove draft if sending from draft
       if (composerData?.id) {
@@ -238,14 +245,6 @@ export default function App() {
 
   // User Registration Handler: Dispatches official welcome letter from POSTMARKED!
   const handleRegister = (newUser) => {
-    const registry = JSON.parse(localStorage.getItem('postmarked_registry') || '{}')
-    const email = newUser.email.toLowerCase()
-    if (registry[email]) {
-      alert('That postal email is already registered. Sign in instead.')
-      return false
-    }
-    registry[email] = newUser
-    localStorage.setItem('postmarked_registry', JSON.stringify(registry))
     setCurrentUser(newUser)
     
     // Update settings with user's registered name and seal
@@ -286,35 +285,15 @@ export default function App() {
   }
 
   const handleLogin = (userData) => {
-    const registry = JSON.parse(localStorage.getItem('postmarked_registry') || '{}')
-    const account = registry[userData.email.toLowerCase()]
-    if (!account || account.password !== userData.password) {
-      alert('We could not match that postal email and password.')
-      return false
-    }
-
-    setCurrentUser(account)
+    setCurrentUser(userData)
     setSettings(prev => ({
       ...prev,
-      userName: account.name,
-      userAddress: account.address,
-      defaultSealColor: account.sealColor,
-      defaultSealEmblem: account.sealEmblem
+      userName: userData.name,
+      userAddress: userData.address,
+      defaultSealColor: userData.sealColor,
+      defaultSealEmblem: userData.sealEmblem
     }))
-    setSelectedWaxColor(account.sealColor)
-
-    try {
-      const mailboxKey = `postmarked_mailbox_${account.email}`
-      const mailbox = JSON.parse(localStorage.getItem(mailboxKey) || '[]')
-      if (mailbox.length > 0) {
-        setLetters(prev => {
-          const ids = new Set(prev.map(letter => letter.id))
-          return [...mailbox.filter(letter => !ids.has(letter.id)), ...prev]
-        })
-        localStorage.removeItem(mailboxKey)
-      }
-    } catch (e) {}
-    return true
+    setSelectedWaxColor(userData.sealColor)
   }
 
   const handleLogout = () => {
