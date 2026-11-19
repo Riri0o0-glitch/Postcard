@@ -1,5 +1,11 @@
 import { randomBytes, timingSafeEqual, scryptSync } from 'node:crypto'
-import { getJson, setJson, storageConfigured } from './_lib/store.js'
+import {
+  createLetter,
+  createProfile,
+  findProfile,
+  getMailbox,
+  storageConfigured
+} from './_lib/supabase.js'
 
 function json(res, status, body) {
   res.status(status).json(body)
@@ -27,7 +33,7 @@ async function sendResendEmail(letter) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) throw new Error('RESEND_API_KEY is not configured.')
 
-  const from = process.env.POSTMARKED_FROM || 'Postmarked <postmarked@postmarked.letters>'
+  const from = process.env.POSTMARKED_FROM || 'Postmarked <onboarding@resend.dev>'
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -71,8 +77,8 @@ export default async function handler(req, res) {
         return json(res, 400, { error: 'Name, email, and a 6-character password are required.' })
       }
 
-      const registry = await getJson('postmarked:registry', {})
-      if (registry[normalizedEmail]) {
+      const existing = await findProfile(normalizedEmail)
+      if (existing) {
         return json(res, 409, { error: 'That postal email is already registered.' })
       }
 
@@ -81,12 +87,11 @@ export default async function handler(req, res) {
         name: name.trim(),
         email: normalizedEmail,
         address: address || 'No. 1 Post Restante, Camden',
-        sealColor: sealColor || '#743D45',
-        sealEmblem: sealEmblem || name.trim().charAt(0).toUpperCase(),
-        passwordHash: hashPassword(password)
+        seal_color: sealColor || '#743D45',
+        seal_emblem: sealEmblem || name.trim().charAt(0).toUpperCase(),
+        password_hash: hashPassword(password)
       }
-      registry[normalizedEmail] = account
-      await setJson('postmarked:registry', registry)
+      await createProfile(account)
 
       const welcome = {
         id: `missive-welcome-${Date.now()}`,
@@ -105,27 +110,42 @@ export default async function handler(req, res) {
         isKeepsake: true,
         body: `Dearest ${account.name},\n\nWelcome to Postmarked. This is your first sealed missive from the Chief Postmaster.\n\nYou can now write, seal, send, and receive letters from companions anywhere in the world.\n\nFaithfully yours,\nThe Chief Postmaster\nPOSTMARKED BUREAU`
       }
-      const mailbox = await getJson(`postmarked:mailbox:${normalizedEmail}`, [])
-      await setJson(`postmarked:mailbox:${normalizedEmail}`, [welcome, ...mailbox])
+      await createLetter({
+        recipient_email: normalizedEmail,
+        data: welcome
+      })
       await sendResendEmail({
         ...welcome,
         recipientEmail: normalizedEmail
       }).catch(() => null)
 
-      const { passwordHash, ...safeAccount } = account
+      const safeAccount = {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+        address: account.address,
+        sealColor: account.seal_color,
+        sealEmblem: account.seal_emblem
+      }
       return json(res, 200, { account: safeAccount, welcome })
     }
 
     if (req.method === 'POST' && action === 'login') {
       const normalizedEmail = normalizeEmail(req.body.email)
-      const registry = await getJson('postmarked:registry', {})
-      const account = registry[normalizedEmail]
-      if (!account || !verifyPassword(req.body.password, account.passwordHash)) {
+      const account = await findProfile(normalizedEmail)
+      if (!account || !verifyPassword(req.body.password, account.password_hash)) {
         return json(res, 401, { error: 'We could not match that postal email and password.' })
       }
-      const mailbox = await getJson(`postmarked:mailbox:${normalizedEmail}`, [])
-      await setJson(`postmarked:mailbox:${normalizedEmail}`, [])
-      const { passwordHash, ...safeAccount } = account
+      const rows = await getMailbox(normalizedEmail)
+      const mailbox = rows.map(row => ({ ...row.data, id: row.data?.id || row.id }))
+      const safeAccount = {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+        address: account.address,
+        sealColor: account.seal_color,
+        sealEmblem: account.seal_emblem
+      }
       return json(res, 200, { account: safeAccount, mailbox })
     }
 
@@ -143,8 +163,10 @@ export default async function handler(req, res) {
         status: 'inbox',
         unread: true
       }
-      const mailbox = await getJson(`postmarked:mailbox:${recipientEmail}`, [])
-      await setJson(`postmarked:mailbox:${recipientEmail}`, [delivered, ...mailbox])
+      await createLetter({
+        recipient_email: recipientEmail,
+        data: delivered
+      })
       await sendResendEmail(delivered)
       return json(res, 200, { delivered })
     }
@@ -152,8 +174,8 @@ export default async function handler(req, res) {
     if (req.method === 'GET' && action === 'mailbox') {
       const normalizedEmail = normalizeEmail(req.query.email)
       if (!normalizedEmail) return json(res, 400, { error: 'Email is required.' })
-      const mailbox = await getJson(`postmarked:mailbox:${normalizedEmail}`, [])
-      await setJson(`postmarked:mailbox:${normalizedEmail}`, [])
+      const rows = await getMailbox(normalizedEmail)
+      const mailbox = rows.map(row => ({ ...row.data, id: row.data?.id || row.id }))
       return json(res, 200, { mailbox })
     }
 
