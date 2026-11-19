@@ -7,10 +7,24 @@ import {
   storageConfigured
 } from './_lib/supabase.js'
 
-function json(res, status, body) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+const GITHUB_PAGES_ORIGIN = 'https://riri0o0-glitch.github.io'
+const ALLOWED_ORIGINS = new Set([
+  GITHUB_PAGES_ORIGIN,
+  'http://localhost:5173',
+  'http://localhost:4173'
+])
+
+function setCorsHeaders(req, res) {
+  const origin = req.headers.origin
+  if (!origin || ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin || GITHUB_PAGES_ORIGIN)
+  }
+  res.setHeader('Vary', 'Origin')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+}
+
+function json(res, status, body) {
   res.setHeader('Content-Type', 'application/json')
   res.status(status).json(body)
 }
@@ -67,9 +81,7 @@ async function sendResendEmail(letter) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  setCorsHeaders(req, res)
   if (req.method === 'OPTIONS') {
     return res.status(204).end()
   }
