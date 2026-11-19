@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_POSTMARKED_API_URL || '/api/mail'
+const API_URL =
+  import.meta.env.VITE_POSTMARKED_API_URL ||
+  'https://postmarked-nu.vercel.app/api/mail'
 
 export async function postmarkedRequest(action, body) {
   let response

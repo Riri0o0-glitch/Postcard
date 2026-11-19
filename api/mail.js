@@ -8,6 +8,9 @@ import {
 } from './_lib/supabase.js'
 
 function json(res, status, body) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Content-Type', 'application/json')
   res.status(status).json(body)
 }
@@ -64,6 +67,13 @@ async function sendResendEmail(letter) {
 }
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end()
+  }
+
   if (!storageConfigured()) {
     return json(res, 503, { error: 'Postmarked storage is not configured.' })
   }
