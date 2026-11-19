@@ -7,12 +7,30 @@ const supabaseHeaders = () => ({
   'Content-Type': 'application/json'
 })
 
+function supabaseBaseUrl() {
+  return process.env.SUPABASE_URL
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/rest\/v1\/?$/, '')
+}
+
 async function request(path, options = {}) {
   if (!storageConfigured()) {
     throw new Error('Supabase storage is not configured.')
   }
 
-  const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${path}`, {
+  const baseUrl = supabaseBaseUrl()
+  let parsed
+  try {
+    parsed = new URL(baseUrl)
+  } catch {
+    throw new Error('SUPABASE_URL is not a valid project URL.')
+  }
+  if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co')) {
+    throw new Error('SUPABASE_URL must be the HTTPS project URL, for example https://project.supabase.co.')
+  }
+
+  const response = await fetch(`${baseUrl}/rest/v1/${path}`, {
     ...options,
     headers: { ...supabaseHeaders(), ...options.headers }
   })
