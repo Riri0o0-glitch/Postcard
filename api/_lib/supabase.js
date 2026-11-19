@@ -4,7 +4,6 @@ export function storageConfigured() {
 
 const supabaseHeaders = () => ({
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
   'Content-Type': 'application/json'
 })
 
