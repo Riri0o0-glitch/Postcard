@@ -1,7 +1,11 @@
+<<<<<<< HEAD
 const API_URL =
   import.meta.env.VITE_POSTMARKED_API_URL ||
   'https://postmarked-jswdiofyl-riri-64a0.vercel.app/api/mail'
 
+=======
+const API_URL = '/api/mail'
+>>>>>>> 86f19fc (Fix Postmarked API connection)
 export async function postmarkedRequest(action, body) {
   let response
   try {
